@@ -1,0 +1,3 @@
+%{
+  "hid": {:git, "https://github.com/lawik/hid.git", "ba2ce58c012d15e4ca4af82849775e051f9a265e", []},
+}
