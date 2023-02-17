@@ -1,6 +1,7 @@
 defmodule Streamdex.Devices.StreamdeckPlus do
   alias Streamdex.Devices
 
+  import Bitwise
   require Logger
 
   @image_report_length 1024
@@ -12,7 +13,7 @@ defmodule Streamdex.Devices.StreamdeckPlus do
     name: "Stream Deck +",
     keys: %{
       count: 8,
-      cols: 8,
+      cols: 4,
       rows: 2,
       pixel_width: 120,
       pixel_height: 120,
@@ -179,6 +180,53 @@ defmodule Streamdex.Devices.StreamdeckPlus do
       event: :turn,
       states: [r1, r2, r3, r4] |> Enum.map(&turn_state/1)
     }
+  end
+
+  @button_count @config.keys.cols * @config.keys.rows
+  defp parse_result(<<0, 8, 0, buttons::binary-size(@button_count), _::binary>>) do
+    states =
+      buttons
+      |> :binary.bin_to_list()
+      |> Enum.map(&button_state/1)
+
+    %{
+      part: :keys,
+      event: :button,
+      states: states
+    }
+  end
+
+  @touch_press %{
+    1 => :short,
+    2 => :long,
+    3 => :drag
+  }
+  @touch_drag 3
+  defp parse_result(<<2, 14, 0, type::8, _unused?::8, coords::binary-size(8), _::binary>>) do
+    <<x1::8, x2::8, y1::8, y2::8, xo1::8, xo2::8, yo1::8, yo2::8>> = coords
+    type = @touch_press[type]
+    x = (x2 <<< 8) + x1
+    y = (y2 <<< 8) + y1
+
+    if type == :drag do
+      x_out = (xo2 <<< 8) + xo1
+      y_out = (yo2 <<< 8) + yo1
+
+      %{
+        part: :touchscreen,
+        event: :press,
+        type: type,
+        start: {x, y},
+        end: {x_out, y_out}
+      }
+    else
+      %{
+        part: :touchscreen,
+        event: :press,
+        type: type,
+        point: {x, y}
+      }
+    end
   end
 
   defp parse_result(result) do
