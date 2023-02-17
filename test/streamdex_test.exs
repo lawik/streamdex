@@ -27,14 +27,23 @@ defmodule StreamdexTest do
 
     m.set_brightness(d, 100)
     # wait(d)
-    image =
-      "priv/blank/sample.png"
-      |> File.read!()
-      |> m.to_key_image()
+    # image =
+    #   "priv/blank/sample.png"
+    #   |> File.read!()
+    #   |> m.to_key_image()
 
-    blank = File.read!("priv/blank/plus.jpg")
-    assert :ok = m.set_key_image(d, 1, image)
+    # blank = File.read!("priv/blank/plus.jpg")
+    # assert :ok = m.set_key_image(d, 1, image)
+    # :timer.sleep(2000)
+    # assert :ok = m.set_key_image(d, 1, blank)
+
+    image =
+      "priv/blank/lcd-800x100.png"
+      |> File.read!()
+      |> m.to_lcd_image()
+
+    assert :ok = m.set_lcd_image(d, 0, 0, 800, 100, image)
+
     :timer.sleep(2000)
-    assert :ok = m.set_key_image(d, 1, blank)
   end
 end
