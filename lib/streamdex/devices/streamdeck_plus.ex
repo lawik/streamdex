@@ -26,10 +26,10 @@ defmodule Streamdex.Devices.StreamdeckPlus do
       report: %{
         length: @image_report_length,
         header_length: @image_report_header_length,
-        payload_length: @image_report_length + @image_report_length,
+        payload_length: @image_report_length - @image_report_header_length,
         touchlcd_length: @image_report_touchlcd_length,
         touchlcd_header_length: @image_report_touchlcd_header_length,
-        touchlcd_payload_length: @image_report_touchlcd_length + @image_report_touchlcd_length
+        touchlcd_payload_length: @image_report_touchlcd_length - @image_report_touchlcd_length
       },
       blank_mfa: {Devices.Blanks, :plus, []}
     }
@@ -127,14 +127,79 @@ defmodule Streamdex.Devices.StreamdeckPlus do
     write_feature(d, payload)
   end
 
+  def set_key_image(d, key_index, binary) do
+    {time, result} =
+      :timer.tc(fn ->
+        send_image_chunk(d, binary, key_index, 0)
+      end)
+
+    IO.inspect(time / 1000, label: "key updated")
+    result
+  end
+
+  def to_key_image(binary) do
+    {:ok, image} = Image.from_binary(binary)
+
+    image
+    |> Image.thumbnail!(@config.keys.pixel_width, fit: :fill, height: @config.keys.pixel_height)
+    |> Image.write!(:memory, suffix: ".jpg")
+  end
+
+  defp send_image_chunk(_, <<>>, _, _), do: :ok
+
+  defp send_image_chunk(d, binary, key_index, page_number) do
+    bytes_remaining = byte_size(binary)
+    payload_length = @config.image.report.payload_length
+    length = min(bytes_remaining, payload_length)
+
+    {bytes, remainder, is_last} =
+      case binary do
+        <<bytes::binary-size(payload_length), remainder::binary>> ->
+          {bytes, remainder, 0}
+
+        bytes ->
+          {bytes, <<>>, 1}
+      end
+
+    header = <<
+      0x02,
+      0x07,
+      key_index &&& 0xFF,
+      is_last,
+      length &&& 0xFF,
+      length >>> 8,
+      page_number &&& 0xFF,
+      page_number >>> 8
+    >>
+
+    IO.inspect(header, label: "header")
+
+    payload = header <> bytes
+
+    IO.inspect(byte_size(payload), label: "payload length")
+    payload = rightpad_bytes(payload, @config.image.report.length)
+
+    case write(d, payload, "set key image chunk") do
+      {:ok, _} ->
+        send_image_chunk(d, remainder, key_index, page_number + 1)
+
+      err ->
+        err
+    end
+  end
+
   defp rightpad_bytes(other, to_size) when not is_binary(other) do
     rightpad_bytes(<<other>>, to_size)
   end
 
   defp rightpad_bytes(binary, to_size) do
-    size = byte_size(binary)
-    remainder = to_size - size
-    binary <> <<0::size(remainder * 8)>>
+    if byte_size(binary) >= to_size do
+      binary
+    else
+      size = byte_size(binary)
+      remainder = to_size - size
+      binary <> <<0::size(remainder * 8)>>
+    end
   end
 
   defp log_payload(payload, as) do

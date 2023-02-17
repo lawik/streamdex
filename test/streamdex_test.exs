@@ -15,7 +15,7 @@ defmodule StreamdexTest do
   end
 
   @tag timeout: :infinity
-  test "greets the world" do
+  test "foo" do
     # Assumes a Streamdeck Plus is connected
     [d] = Streamdex.devices()
     assert %{hid: nil} = d
@@ -26,6 +26,15 @@ defmodule StreamdexTest do
     m = d.module
 
     m.set_brightness(d, 100)
-    wait(d)
+    # wait(d)
+    image =
+      "priv/blank/sample.png"
+      |> File.read!()
+      |> m.to_key_image()
+
+    blank = File.read!("priv/blank/plus.jpg")
+    assert :ok = m.set_key_image(d, 1, image)
+    :timer.sleep(2000)
+    assert :ok = m.set_key_image(d, 1, blank)
   end
 end

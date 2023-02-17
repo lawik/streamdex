@@ -22,7 +22,8 @@ defmodule Streamdex.MixProject do
   defp deps do
     [
       # {:hid, github: "lawik/hid"}
-      {:hid, path: "../hid"}
+      {:hid, path: "../hid"},
+      {:image, "~> 0.24"}
     ]
   end
 end
