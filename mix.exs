@@ -21,7 +21,8 @@ defmodule Streamdex.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:hid, github: "lawik/hid"}
+      # {:hid, github: "lawik/hid"}
+      {:hid, path: "../hid"}
     ]
   end
 end
