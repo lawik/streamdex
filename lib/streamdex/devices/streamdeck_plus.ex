@@ -233,8 +233,8 @@ defmodule Streamdex.Devices.StreamdeckPlus do
         <<width::size(16)-unsigned-integer-little>>,
         <<height::size(16)-unsigned-integer-little>>,
         is_last,
-        <<length::size(16)-unsigned-integer-little>>,
         <<page_number::size(16)-unsigned-integer-little>>,
+        <<length::size(16)-unsigned-integer-little>>,
         0x00
       ]
       |> IO.iodata_to_binary()
