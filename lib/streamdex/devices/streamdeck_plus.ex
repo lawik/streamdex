@@ -139,15 +139,21 @@ defmodule Streamdex.Devices.StreamdeckPlus do
   def to_key_image(binary) do
     {:ok, image} = Image.from_binary(binary)
 
-    image
-    |> Image.thumbnail!(@config.keys.pixel_width, fit: :fill, height: @config.keys.pixel_height)
-    |> Image.write!(:memory, suffix: ".jpg")
+    new_binary =
+      image
+      |> Image.thumbnail!(@config.keys.pixel_width, fit: :fill, height: @config.keys.pixel_height)
+      |> Image.write!(:memory, suffix: ".jpg")
+
+    new_binary
   end
 
-  def to_lcd_image(binary) do
+  def to_lcd_image(binary, width \\ 800, height \\ 100) do
+    width = max(width, 800)
+    height = max(height, 100)
     {:ok, image} = Image.from_binary(binary)
 
     image
+    |> Image.thumbnail!(width, fit: :fill, height: height)
     |> Image.write!(:memory, suffix: ".jpg")
   end
 
@@ -172,15 +178,17 @@ defmodule Streamdex.Devices.StreamdeckPlus do
       0x07,
       key_index &&& 0xFF,
       is_last,
-      length &&& 0xFF,
-      length >>> 8,
-      page_number &&& 0xFF,
-      page_number >>> 8
+      length::size(16)-unsigned-integer-little,
+      page_number::size(16)-unsigned-integer-little
     >>
+
+    8 = byte_size(header)
 
     payload = header <> bytes
 
     payload = rightpad_bytes(payload, @config.image.report.length)
+
+    1024 = byte_size(payload)
 
     case write(d, payload, "set key image chunk") do
       {:ok, _} ->
@@ -194,6 +202,14 @@ defmodule Streamdex.Devices.StreamdeckPlus do
   defp send_lcd_image_chunk(_, <<>>, _, _, _, _, _), do: :ok
 
   defp send_lcd_image_chunk(d, binary, x, y, width, height, page_number) do
+    if width + x > 800 do
+      raise "too wide"
+    end
+
+    if height + y > 100 do
+      raise "too high"
+    end
+
     bytes_remaining = byte_size(binary)
     IO.inspect(bytes_remaining, label: "remaining")
     payload_length = @config.image.report.touchlcd_payload_length
@@ -212,20 +228,24 @@ defmodule Streamdex.Devices.StreamdeckPlus do
       [
         0x02,
         0x0C,
-        :binary.encode_unsigned(x, :little),
-        :binary.encode_unsigned(y, :little),
-        :binary.encode_unsigned(width, :little),
-        :binary.encode_unsigned(height, :little),
+        <<x::size(16)-unsigned-integer-little>>,
+        <<y::size(16)-unsigned-integer-little>>,
+        <<width::size(16)-unsigned-integer-little>>,
+        <<height::size(16)-unsigned-integer-little>>,
         is_last,
-        :binary.encode_unsigned(length, :little),
-        :binary.encode_unsigned(page_number, :little),
+        <<length::size(16)-unsigned-integer-little>>,
+        <<page_number::size(16)-unsigned-integer-little>>,
         0x00
       ]
       |> IO.iodata_to_binary()
 
+    16 = byte_size(header)
+
     payload = header <> bytes
 
     payload = rightpad_bytes(payload, @config.image.report.touchlcd_length)
+
+    1024 = byte_size(payload)
 
     case write(d, payload, "set lcd image chunk") do
       {:ok, _} ->
