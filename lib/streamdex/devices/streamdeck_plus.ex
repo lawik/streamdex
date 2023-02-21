@@ -142,7 +142,7 @@ defmodule Streamdex.Devices.StreamdeckPlus do
     new_binary =
       image
       |> Image.thumbnail!(@config.keys.pixel_width, fit: :fill, height: @config.keys.pixel_height)
-      |> Image.write!(:memory, suffix: ".jpg")
+      |> Image.write!(:memory, suffix: ".jpg", quality: 100)
 
     new_binary
   end
@@ -154,7 +154,7 @@ defmodule Streamdex.Devices.StreamdeckPlus do
 
     image
     |> Image.thumbnail!(width, fit: :fill, height: height)
-    |> Image.write!(:memory, suffix: ".jpg")
+    |> Image.write!(:memory, suffix: ".jpg", quality: 100)
   end
 
   defp send_key_image_chunk(_, <<>>, _, _), do: :ok
