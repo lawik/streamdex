@@ -17,7 +17,7 @@ defmodule StreamdexTest do
   @tag timeout: :infinity
   test "foo" do
     # Assumes a Streamdeck Plus is connected
-    [d] = Streamdex.devices()
+    d = Streamdex.devices() |> Enum.find(&(&1.config.name == "Stream Deck +"))
     assert %{hid: nil} = d
     assert %{name: "Stream Deck +"} = d.config
     d = Streamdex.start(d)
