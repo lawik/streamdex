@@ -44,7 +44,6 @@ defmodule Streamdex.Devices.StreamdeckPlus do
 
   def start(d) do
     {:ok, device} = open(d.hid_info)
-    IO.inspect(device, label: "opened")
     d = %{d | hid: device}
     reset_key_stream(d)
     reset(d)
@@ -75,29 +74,11 @@ defmodule Streamdex.Devices.StreamdeckPlus do
   end
 
   def write(d, payload, log_as \\ nil) do
-    if log_as do
-      log_payload(payload, log_as)
-    end
-
-    result = HID.write(d.hid, payload)
-
-    if log_as do
-      IO.inspect(result, label: "#{log_as} result")
-    end
-
-    result
+    HID.write(d.hid, payload)
   end
 
   def write_feature(d, payload, log_as \\ nil) do
-    if log_as do
-      log_payload(payload, log_as)
-    end
-
     result = HID.write_report(d.hid, payload)
-
-    if log_as do
-      IO.inspect(result, label: "#{log_as} result")
-    end
   end
 
   def read_key_states(d) do
@@ -211,7 +192,6 @@ defmodule Streamdex.Devices.StreamdeckPlus do
     end
 
     bytes_remaining = byte_size(binary)
-    IO.inspect(bytes_remaining, label: "remaining")
     payload_length = @config.image.report.touchlcd_payload_length
     length = min(bytes_remaining, payload_length)
 
@@ -270,10 +250,6 @@ defmodule Streamdex.Devices.StreamdeckPlus do
     end
   end
 
-  defp log_payload(payload, as) do
-    IO.inspect({byte_size(payload), payload}, label: "#{as} payload")
-  end
-
   @button_down 1
   @button_up 0
   defp button_state(state) do
@@ -295,7 +271,7 @@ defmodule Streamdex.Devices.StreamdeckPlus do
         end
 
       steps = state - base + 1
-      {direction, steps}
+      {direction, abs(steps)}
     end
   end
 

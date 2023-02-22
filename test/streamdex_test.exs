@@ -25,7 +25,7 @@ defmodule StreamdexTest do
     assert not is_nil(hid_ref)
     m = d.module
 
-    m.set_brightness(d, 100)
+    # m.set_brightness(d, 100)
     # wait(d)
     image =
       "priv/blank/sample.png"
@@ -34,9 +34,9 @@ defmodule StreamdexTest do
 
     blank = File.read!("priv/blank/plus.jpg")
 
-    for i <- 0..7 do
-      assert :ok = m.set_key_image(d, i, image)
-    end
+    # for i <- 0..7 do
+    #  assert :ok = m.set_key_image(d, i, image)
+    # end
 
     IO.inspect(byte_size(image), label: "key image")
 
@@ -55,10 +55,60 @@ defmodule StreamdexTest do
       |> File.read!()
       |> m.to_lcd_image(800, 100)
 
-    File.write!("priv/blank/key-underjord.jpg", foo)
-    File.write!("priv/blank/lcd-800x100.jpg", bork)
+    {:ok, img} =
+      "priv/blank/lcd-800x100.png"
+      |> File.read!()
+      |> Image.from_binary()
 
     assert :ok = m.set_lcd_image(d, 0, 0, 800, 100, bork)
-    IO.inspect(byte_size(bork), label: "lcd image")
+
+    # File.write!("priv/blank/key-underjord.jpg", foo)
+    # File.write!("priv/blank/lcd-800x100.jpg", bork)
+
+    # assert :ok = m.set_lcd_image(d, 0, 0, 800, 100, bork)
+    # IO.inspect(byte_size(bork), label: "lcd image")
+    # IO.inspect(time, label: "240 frames in")
+    {:ok, _} =
+      Streamdex.Device.start_link(
+        device: d,
+        callback: fn result ->
+          blur = Process.get(:blur, 0)
+
+          blur =
+            case result do
+              %{part: :knobs, event: :turn, states: [{:right, steps} | _]} ->
+                IO.inspect(steps, label: "right")
+                blur + steps
+
+              %{part: :knobs, event: :turn, states: [{:left, steps} | _]} ->
+                IO.inspect(steps, label: "left")
+                blur - steps
+
+              _ ->
+                blur
+            end
+
+          IO.inspect(blur, label: "blur")
+
+          sigma =
+            if blur < 1.0 do
+              1.0
+            else
+              blur
+            end
+
+          IO.inspect(sigma, label: "sigma")
+
+          blurred =
+            img
+            |> Image.blur!(sigma: sigma)
+            |> Image.write!(:memory, suffix: ".jpg", quality: 100)
+
+          assert :ok = m.set_lcd_image(d, 0, 0, 800, 100, blurred)
+          Process.put(:blur, blur)
+        end
+      )
+
+    :timer.sleep(:infinity)
   end
 end
