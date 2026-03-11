@@ -7,7 +7,6 @@ defmodule Streamdex.Device do
 
   def init(options) do
     device = Keyword.fetch!(options, :device)
-    poll_rate = Keyword.get(options, :poll_rate, 100)
     callback = Keyword.get(options, :callback)
 
     device =
@@ -17,19 +16,39 @@ defmodule Streamdex.Device do
         device
       end
 
-    state = %{device: device, poll_rate: poll_rate, callback: callback}
-    poll(state)
+    state = %{device: device, callback: callback, reader: nil}
+    state = start_reader(state)
     {:ok, state}
   end
 
-  def handle_info(:poll, state) do
-    case state.device.module.poll(state.device) do
-      nil -> nil
-      result -> invoke_callback(result, state)
-    end
-
-    poll(state)
+  def handle_info({:hid_report, result}, state) do
+    invoke_callback(result, state)
     {:noreply, state}
+  end
+
+  def handle_info({:hid_error, reason}, state) do
+    {:stop, {:hid_error, reason}, state}
+  end
+
+  defp start_reader(state) do
+    parent = self()
+    device = state.device
+
+    reader =
+      spawn_link(fn -> read_loop(device, parent) end)
+
+    %{state | reader: reader}
+  end
+
+  defp read_loop(device, parent) do
+    case device.module.poll(device) do
+      nil ->
+        read_loop(device, parent)
+
+      result ->
+        send(parent, {:hid_report, result})
+        read_loop(device, parent)
+    end
   end
 
   defp invoke_callback(result, state) do
@@ -43,11 +62,5 @@ defmodule Streamdex.Device do
       nil ->
         nil
     end
-
-    {:noreply, state}
-  end
-
-  defp poll(state) do
-    Process.send_after(self(), :poll, state.poll_rate)
   end
 end
