@@ -69,6 +69,15 @@ defmodule Streamdex.Devices.StreamdeckPlus do
     end
   end
 
+  def keep_alive(d) do
+    # The device has a firmware-level idle timer that puts the display to
+    # sleep when no HID traffic flows. A GET_FEATURE_REPORT for firmware
+    # version is a cheap control transfer that resets that timer without
+    # changing any device state.
+    _ = HID.read_report(d.hid, 0x05, 32)
+    :ok
+  end
+
   def read_feature(d, report_id, size) do
     HID.read_report(d.hid, report_id, size)
   end

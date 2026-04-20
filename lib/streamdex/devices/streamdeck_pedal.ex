@@ -44,6 +44,8 @@ defmodule Streamdex.Devices.StreamdeckPedal do
     end
   end
 
+  def keep_alive(_d), do: :ok
+
   def read_feature(d, report_id, size) do
     HID.read_report(d.hid, report_id, size)
   end
